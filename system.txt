@@ -1,0 +1,365 @@
+神工系统 V3.1
+目录 (Table of Contents)
+第一章：核心战略与量化目标 (基于 OpenClaw 特性)
+第二章：七大核心需求的系统映射与架构总览
+第三章：商业化内容与世界观执行标准（已重写：通用化变量驱动）
+第四章：闭环连载系统工作逻辑图（已修正角色文件引用）
+第五章（升级新增）：世界状态图 (World State Graph) — V3.1 新增模块
+第六章（升级新增）：角色关系图 (Character Graph Memory) — V3.1 新增模块
+第七章（升级新增）：剧情节奏调度器 (Beat Scheduler) — V3.1 新增模块
+第八章：动态记忆总线与 YAML 约定（字段命名统一）
+第九章：AI 代理体系（新增 Planner 与 LoreKeeper）
+第十章：部署、冷启动与 init_project.py（P0 补充）
+第十一章：表现层、监控与常见问题排查
+项目文档 → 实施任务映射
+第五章 世界状态图           → P2-3
+第六章 角色关系图           → P2-3
+第七章 Beat Scheduler       → P3-1
+第八章 YAML 记忆总线        → P2-1
+第九章 Planner Agent → P3-2
+第九章 LoreKeeper Agent → P2-3
+第十章 init_project.py      → P0-3
+第一章：核心战略与量化目标
+（内容保留原意，仅对若干措辞/名词在全局范围内做了统一 — 见后文 YAML 字段统一说明）
+核心战略 (Core Strategy)本系统的根本战略是构建一个基于 OpenClaw 的全自动记忆读写闭环。摒弃单次超长文本喂模的低效模式，利用 OpenClaw 支持外部 API 与长上下文处理的机制，打造“提取核心上下文 → 按大纲生成正文 → 拟真自我纠错 → 提取关键变动并覆写数据库”的循环系统。通过动态全局知识库（RAG）与角色档案持久化，从技术物理层面上杜绝长篇连载最致命的“吃书”与“OOC”问题。
+核心量化目标
+自动化闭环率：系统在注入初始故事大纲后，应能自动完成“检索-生成-校验-更新记忆”的完整步骤。
+OOC 与漏洞控制：依托每次生成前强制读取的 YAML 档案与 SQLite 历史事件，角色行为偏离度 ≤ 1%，矛盾率目标尽可能趋近 0。
+第二章：七大核心需求的系统映射与架构总览
+（保留原有 4 大系统模块映射与实现方向，补充 V3.1 扩展点）
+OpenClaw 核心通信与长文本引擎 (对应需求 1)
+使用结构化 Payload 与滑动窗口 + 动态锚点的长文本处理策略。
+在 Prompts 中只注入：全局法则 + 当前角色状态 + 前两章摘要 + 本章大纲，精准控制 Token 消耗。
+动态全局知识库与防吃书系统 (对应需求 2)
+保持 SQLite 的 RAG 存取，但新增 Graph 层（World Graph / Character Graph）以结构化方式保存实体与关系，提升一致性与检索准确性。
+角色档案持久化防 OOC 机制 (对应需求 3)
+每个角色独立 YAML 保存 static_profile 与 dynamic_state。YAML 字段命名已统一（详见第六章）。
+商业结构与多步纠错润色流 (对应需求 4,6)
+结构模板（如“黄金前三章”）作为可配置组件，不再硬编码任何具体 IP 或题材风格。
+引入“双轨 Prompt”机制（Writer / Critic），并新增 Planner 与 LoreKeeper 代理以保证节奏与设定一致性（详见第七章）。
+社群穿透力与闭环自动化 (对应需求 5,7)
+热点微调模块为可选增强插件，能在不破坏世界观/题材规则的前提下植入传播性桥段。
+通过 Python 有向无环图 (DAG) 脚本将所有模块串联，支持一键运行或分段手动干预。
+第三章：商业化内容与世界观执行标准（重写 —— 通用化变量驱动）
+核心修正说明：将原文中所有硬编码的 IP/题材描述（例如具体“失眠社畜”“香肠派对手游”挂钩等）全部移除或替换为系统级变量。系统执行时严格读取这些变量作为唯一约束来源。
+在自动化闭环运行期间，OpenClaw 必须严格遵守以下底层内容约束规则，任何偏离将触发系统的自动纠错打回：
+故事主线锚点（Logline Anchor）系统必须在每次生成章节时强制读取 {Logline}（一句话核心大纲）作为最高优先级叙事锚点。所有章节剧情必须围绕该核心目标推进，不得出现与主线目标无关的长期偏离剧情。
+题材红线控制（Genre Rules Enforcement）系统必须严格遵守 {Genre_Rules} 中定义的题材限制与禁用元素。Critic Agent 在审查阶段将自动检测违禁元素，一旦发现违反规则的内容（如题材不符、出现禁用科技或设定），系统将自动触发重写流程。
+情绪与悬念回路（Narrative Tension Loop）每一章节必须在结构上满足商业连载小说的情绪推进规则：铺垫 → 冲突 → 情绪峰值 → 悬念断章。Beat Scheduler 将根据 {Core_Hook_Mechanic} 自动判断何时触发高潮或关键剧情反转。
+社群传播强化机制（Meme Injection Layer）在剧情生成阶段，系统允许通过热点语义模块自动引入具有传播潜力的情节元素，例如：高情绪冲突、反常识设定、话题性人物行为或可被读者二次创作的“梗式桥段”。该模块为可选增强组件，不依赖任何特定 IP 或世界观。
+备注：原文中“失眠”“香肠派对手游”等具体表述已全部删除，任何需要具体题材或 IP 的情形应当通过 {Logline} 或 {Genre_Rules} 注入（用户可在冷启动时定义）。
+第四章：闭环连载系统工作逻辑图（已修正角色文件引用与流程）
+以下为修正后的闭环逻辑（关键修改点：所有对角色文件的引用均改为通用路径 data/characters/{char_id}.yaml；所有 world / character 更新以 SQLite 数据库为唯一权威数据源，
+Graph 结构作为查询与推理层存在，
+YAML 文件仅作为可读缓存，由系统在数据库更新成功后同步生成。
+）：
+=======================================================================
+               【神工系统：基于 OpenClaw 的自动化连载闭环】
+=======================================================================
+[1. 触发生成指令 (传入本章大纲)]
+       │
+       ▼
+[2. 核心上下文装配 (RAG 检出)]
+   ├─ <font color="blue">读取 `data/characters/{char_id}.yaml` -> 获取角色当前状态与动机 (防 OOC)</font>
+   ├─ 查询 SQLite / Graph -> 获取历史事件、世界节点与角色关系 (防吃书、关系崩坏)
+   └─ 加载 商业化结构模板 -> 注入断章与爽点要求
+       │
+       ▼
+[3. OpenClaw 初稿生成 (Writer 模式)]
+   └─ 融合上下文，生成剧情初稿（注：Prompt 中不得包含硬编码 IP，均以 `{Logline}` / `{Genre_Rules}` 为准）
+       │
+       ▼
+[4. OpenClaw 自我纠错与润色 (Critic 模式)]
+   ├─ 规则检查：检测是否违反 Genre_Rules 或出现禁用元素
+   ├─ OOC 检查：角色行为是否偏离角色档案
+   ├─ 结构检查：章节是否满足当前 Beat 的节奏要求
+   ├─ 若未达标 ──> [返回步骤 3 局部重写]
+   └─ 若达标 ────> [输出最终定稿]
+       │
+       ▼
+[5. 动态全局知识更新 (记忆持久化)]
+   ├─ 触发总结任务，提取定稿中的关键变动（状态变更 / 事件 / 伏笔回收）
+   ├─ 更新 SQLite 数据库中的角色状态与关系图
+   ├─ YAML 文件仅作为可读缓存使用
+数据库为唯一权威数据源。
+如需更新 YAML，系统会在数据库写入成功后
+使用原子写入方式同步 YAML 文件。
+   ├─ 更新 world_graph（若本章产生世界观层面变动）
+   └─ INSERT INTO SQLite events_log (记录本章发生的重大事件与时间线)
+       │
+       ▼
+[进入等待状态]
+系统默认只连续自动生成有限章节。
+为避免资源滥用，Orchestrator 会读取配置：
+max_chapters_per_run = 3
+当达到该上限后，系统暂停运行并等待人工确认。
+用户可以在 UI 中点击“继续生成”触发下一批章节。
+第五章（V3.1 新增）世界状态图 (World State Graph)
+（注：此模块为 V3.1 新增，用于结构化存储世界实体与它们的关系，避免长篇中出现世界观冲突或地理/势力错误。）
+5.1 世界节点（Node）
+每个重要实体抽象为 Node（城市、势力、地点、机构、特殊遗迹等），以 JSON / Graph 表示，存储在 world_graph_edges 表与辅助 JSON 文件中。
+示例 Node：
+{
+  "node_id": "loc_001",
+  "type": "city",
+  "name": "黑雾城",
+  "attributes": {
+    "population": 120000,
+    "faction_control": "shadow_guild",
+    "danger_level": 4
+  }
+}
+5.2 世界关系（Edge）
+节点间关系以 Edge 表示（统治 / 贸易 / 敌对 / 盟约 / 受灾等），关系包含强度与最后更新时间。
+示例 SQL 建表语句：
+CREATE TABLE world_graph_edges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_node TEXT,
+    relation_type TEXT,
+    target_node TEXT,
+    relation_strength INTEGER DEFAULT 1,
+    last_updated_chapter INTEGER
+);
+5.3 使用场景
+章节生成前 Query 相邻节点与关系，注入 Prompt，避免“城市归属错误”“阵营突兀合作”等逻辑失误。
+第六章（V3.1 新增）角色关系图 (Character Graph Memory)
+（注：记录角色之间动态信任/敌意/亲属/师徒/爱恨关系，作为生成决策的重要输入。）
+6.1 关系表结构
+CREATE TABLE character_relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    char_a TEXT,
+    char_b TEXT,
+    relation_type TEXT,
+    trust_level INTEGER DEFAULT 0,
+    hostility_level INTEGER DEFAULT 0,
+    last_updated_chapter INTEGER
+);
+关系类型示例：ally, enemy, mentor, family, romance, rival
+6.2 更新规则
+ 每章结束后，系统不会直接从自由文本中自动推断角色关系变化。
+  Writer Agent 在生成章节后，会调用结构化提取任务，
+  要求模型返回严格 JSON 格式的事件摘要。
+  LoreKeeper Agent 只负责解析该 JSON 数据，
+  并根据其中的 relationship_updates 字段更新数据库。
+  示例 JSON：
+  {
+    "events":[
+      {
+        "type":"relationship_change",
+        "characters":["hero","mentor"],
+        "relationship_updates":[
+          {"char_a":"hero","char_b":"mentor","trust_delta":1}
+        ]
+      }
+    ]
+  }
+  程序将验证 JSON 结构后再更新 character_relationships 表。
+  不允许直接根据小说文本自动推断关系变化。
+6.3 生成调用
+Writer Agent 在生成时会读取角色关系摘要（例如“主角 — trust 4 — 导师；主角 — hostility 3 — 反派”）并据此约束行为与对话风格。
+第七章（V3.1 新增）剧情节奏调度器 (Beat Scheduler)
+（注：用于保证商业连载的节奏与爽点分布，支持可配置节奏模板与自动增强 Prompt。）
+7.1 默认节奏（可配置）
+story_beats:
+  hook: {type: "fixed", value: 1}
+  first_payoff: {type: "range", min: 2, max: 4}
+  mini_climax: {type: "range", min: 8, max: 12}
+  arc_climax: {type: "range", min: 25, max: 35}
+  world_reveal: {type: "range", min: 80, max: 120}
+Beat Scheduler 会根据配置区间自动选择合理章节，
+避免固定节奏导致故事结构僵化。
+7.2 Beat Scheduler 行为
+在生成章节时，beat_scheduler.get_required_beat(chapter_num) 返回本章必须完成的 beat（例如：hook / payoff / climax），并自动在 Writer Prompt 中注入相关约束（例如“本章必须包含冲突升级与情绪高潮”）。
+第八章：动态记忆总线与 YAML 约定（字段命名统一）
+关键统一规则（必须严格遵守）：
+角色 YAML 中 dynamic_state 的字段统一为：
+current_location（string）
+physical_health（string 或 结构化列表） ← 统一后的字段
+mental_state（string 或 结构化列表） ← 统一后的字段
+inventory（list）
+原文中出现的 physical_status / psychological_status 已被替换为 physical_health / mental_state。请确保所有解析器（Python 代码）使用的是 physical_health 和 mental_state。
+示例通用角色模板（data/characters/{char_id}.yaml）：
+character_id: "char_main_01"
+static_profile:
+  name: "{角色姓名}"
+  archetype: "{原型定位：如孤狼、圣母、狂战士}"
+  core_motive: "{核心驱动力：如复仇、生存、长生}"
+dynamic_state: # ⚠️ 此区域由系统在每章结束后自动更新
+  current_location: "{当前所在物理位置}"
+  physical_health: "{生理状态：如左臂骨折、灵力枯竭}"
+  mental_state: "{心理状态：如濒临崩溃、极度亢奋}"
+  inventory:
+    - "{重要道具 1}"
+    - "{线索物品 2}"
+数据库（SQLite）核心表（保留并扩展）
+events_log（历史事件）
+foreshadowing_ledger（伏笔追踪）
+world_graph_edges（世界关系）
+character_relationships（角色关系）
+（SQL 语句在原文中保留并已补充 world_graph / character_relationships 建表语句）
+第九章：AI 代理体系（升级）
+原 Writer / Critic 两代理扩展为多代理协作体系，以便实现更精细的规划、节奏与设定一致性控制。
+新增代理（V3.1）
+Planner Agent：负责章节级规划、Beat 分配、伏笔安排，与 Beat Scheduler 联动。
+Writer Agent：根据 Planner 提供的结构化大纲与上下文执行文本生成（调用 OpenClaw）。
+Critic Agent：对稿件进行规则审查（OOC、题材红线、节奏与推进性检查），并返回详细反馈与分数。
+LoreKeeper Agent：负责世界状态图与角色关系图的同步更新、设定冲突检测，并在检测到高风险冲突时阻断生成或回滚修改。
+生成流程（代理协作）
+Planner 生成本章结构（包含 beat tag、关键事件点）
+Writer 以 {Logline}、characters YAML、world_graph、character_graph 及最近事件为上下文生成初稿
+Critic 审查初稿；不合格则返回修改意见给 Writer（自动或人工干预）
+LoreKeeper 在定稿后解析并更新 YAML / Graph / SQLite，同时触发伏笔回收或新增
+注意：所有关系变化与世界状态更新必须由
+结构化 JSON 输出触发。
+系统不会直接从小说文本自动推断复杂关系。
+第十章：部署、冷启动与 init_project.py（P0 补充）
+关键修正：原部署清单中遗漏了 P0 阶段的冷启动脚本 init_project.py，该脚本必须包含在目录结构与启动流程中。
+目录结构（已修改）
+godcraft_v3/
+├── app.py
+├── orchestrator.py
+├── openclaw_api.py
+├── db_handler.py
+<font color="blue">├── init_project.py        # (P0阶段) 项目初始化脚本</font>
+├── planner_agent.py
+├── writer_agent.py
+├── critic_agent.py
+├── lorekeeper_agent.py
+├── world_graph.py
+├── relationship_graph.py
+├── beat_scheduler.py
+├── requirements.txt
+├── config/
+│   └── world_setting.yaml
+├── data/
+│   ├── characters/
+│   └── godcraft.db
+└── prompts/
+    ├── writer_prompt.txt
+    └── critic_prompt.txt
+init_project.py（功能说明与伪代码）
+（注：请把以下脚本文件加入项目根目录）
+功能：
+读取用户交互输入 {Logline}、{Genre_Rules}、{Core_Hook_Mechanic}
+生成基础 config/world_setting.yaml、创建初始角色 YAML 模板 data/characters/{char_id}.yaml
+初始化 SQLite（创建 events_log、foreshadowing_ledger、world_graph_edges、character_relationships 表）
+提供简单交互（CLI）或可被 UI 调用的 API 接口
+伪代码：
+# init_project.py (伪代码)
+import yaml, sqlite3, os, json
+def create_world_setting(logline, genre_rules, core_hook):
+    world = {
+      "project_id": "novel_generic_001",
+      "global_anchors": {
+         "logline": logline,
+         "genre": genre_rules.get("genre", ""),
+         "power_system": genre_rules.get("power_system", "")
+      },
+      "absolute_rules": {
+         "do_not_include": genre_rules.get("do_not_include", []),
+         "mandatory_hooks": [core_hook]
+      }
+    }
+    os.makedirs("config", exist_ok=True)
+    with open("config/world_setting.yaml","w",encoding="utf8") as f:
+        yaml.dump(world,f,allow_unicode=True)
+def create_character_template(char_id, name, archetype, motive):
+    os.makedirs("data/characters", exist_ok=True)
+    char = {
+      "character_id": char_id,
+      "static_profile": {"name": name, "archetype": archetype, "core_motive": motive},
+      "dynamic_state": {"current_location": "", "physical_health": "", "mental_state": "", "inventory": []}
+    }
+    with open(f"data/characters/{char_id}.yaml","w",encoding="utf8") as f:
+        yaml.dump(char,f,allow_unicode=True)
+def init_db():
+    conn = sqlite3.connect("data/godcraft.db")
+    c = conn.cursor()
+    # 创建 events_log, foreshadowing_ledger, world_graph_edges, character_relationships
+    # （略，参考文档中 SQL 建表语句）
+    conn.commit()
+    conn.close()
+if __name__ == "__main__":
+    # 提示用户输入或读取 CLI 参数
+    # 生成 world_setting.yaml、样例主角 YAML、数据库
+    pass
+冷启动实操流程（更新）
+在“Cold Start Workflow”中加入 init_project.py 的执行步骤：
+运行初始化脚本python init_project.py该脚本将根据 {Logline} 自动生成：world_setting.yaml、主角 YAML 模板、SQLite 初始表结构。
+在 UI（Streamlit）或 CLI 中检视生成文件并补充细节（如角色姓名、初始位置）。
+注入前 N 章大纲（在上帝控制台的剧本调度中心中编辑）。
+点击【🚀 启动自动连载】开始运行闭环。
+第十一章：表现层、监控与常见问题排查
+表现层（app.py / Streamlit UI）
+（保留原设计，但修正展示路径与字段引用为 data/characters/{char_id}.yaml，并新增对 world_graph 与 character_graph 的可视化）
+UI 功能（保留原来的三大 Tab，并新增 Graph 视图）：
+剧本调度中心：显示 {Logline}、未来 Beat 计划、可编辑后续 5 章细纲。
+状态机透视镜：双向绑定 data/characters/*.yaml、show physical_health / mental_state、可强制覆盖。
+生产监控车间：展示 Writer 的流式输出、Critic 的打分与反馈、Planner 的 beat 分配日志。
+世界与关系可视化（新增）：Graph 视图展示 world_graph 与 character_graph，支持节点点击查看属性并手动修正。
+备注：Streamlit 第一次出现处已用实体包裹一次： Streamlit
+常见问题（补充）
+Q: 为什么生成的文本仍然出现特定 IP 风格？A: 检查 config/world_setting.yaml 中 logline 或 prompts 是否包含了该 IP 的字词。系统不再在底层硬编码 IP；所有题材来自 {Logline} 与 {Genre_Rules}。
+Q: 为什么 YAML 更新失败或解析报错？A: 请确保所有 YAML 文件使用的字段为 physical_health 和 mental_state（而不是旧的 physical_status / psychological_status）。
+Q: 系统大量并发生成导致 OpenClaw 崩溃？A: 请调整 openclaw_api.py 中的 max_retries 与 _truncate_context 策略；并在 orchestrator 中限制并发度。
+附录：关键代码片段（重要实现要点）
+openclaw_api.py（Token 守门员与请求重试）
+（保留原伪代码，补充 extract_structured_data 要求模型返回严格 JSON）
+class OpenClawClient:
+    ...
+    def _truncate_context(self, prompt: str, max_tokens: int = 8000) -> str:
+        # 保留 system prompt 与尾部指令，按时间顺序丢弃中间低权重历史
+        ...
+    def generate_with_retry(self, system_prompt: str, user_prompt: str) -> str:
+        ...
+    def extract_structured_data(self, text: str) -> Dict[str, Any]:
+        """
+        要求模型返回 JSON 严格格式：
+{
+  "chapter_id": "...",
+  "summary": "...",
+  "events": [
+    {
+      "type": "relationship_change|action|item_acquired|location_change|foreshadow",
+      "description": "...",
+      "involved_characters": ["char_a","char_b"],
+      "relationship_updates": [
+        {"char_a":"char_a","char_b":"char_b","trust_delta":1}
+      ]
+    }
+  ],
+  "character_updates": {
+    "inventory": [...],
+    "physical_health": "...",
+    "mental_state": "..."
+  },
+  "resolved_clue_ids": [...]
+}
+        """
+        # 发送特定提取 Prompt 给模型，要求只返回 JSON
+        pass
+orchestrator.py（高层伪代码）
+（保留原逻辑，新增 Planner / LoreKeeper 调用点）
+def generate_chapter_pipeline(chapter_num: int, outline_node: str):
+    world_config = load_yaml("config/world_setting.yaml")
+    planner = PlannerAgent(...)
+    beat = planner.request_beat(chapter_num)
+    characters = load_active_characters(outline_node)
+    # 加载 world_graph / character_graph
+    recent_events = db.query("SELECT event_summary FROM events_log ORDER BY id DESC LIMIT 3")
+    writer_prompt = build_prompt(world_config, characters, recent_events, outline_node, beat)
+    draft_text = openclaw_api.generate_with_retry(system_prompt, writer_prompt)
+    critic_result = critic_agent.evaluate(draft_text)
+    if critic_result.score < threshold:
+        draft_text = openclaw_api.generate_with_retry(system_prompt, writer_prompt + "\n修改意见：" + critic_result.feedback)
+    update_data = openclaw_api.extract_structured_data(draft_text)
+    # LoreKeeper 解析并写入 YAML / Graph / SQLite
+    lorekeeper.update_world_and_relations(update_data)
+    return draft_text
+最终说明与交付清单（你可以直接交给工程团队）
+✅ 第三章 已全部重写为变量驱动（{Logline}、{Genre_Rules}、{Core_Hook_Mechanic}），删除所有硬编码 IP。请把文档中所有原始 IP / 题材示例替换为变量示例或注释。
+✅ 第四章逻辑图 中所有 linyuan.yaml 引用已替换为 data/characters/{char_id}.yaml。
+✅ YAML 字段命名 已统一为 physical_health / mental_state，并加入注释提示解析器必须使用该命名。
+✅ P0 冷启动脚本 init_project.py 已在目录结构与冷启动流程中补充说明（请将伪代码实现为实际脚本并加入 repo）。
+✅ V3.1 新增模块：World State Graph、Character Graph、Beat Scheduler、Planner / LoreKeeper Agent、多章节并行与 Graph 可视化。
+✅ 提供下载链路失败时：你现在可直接复制本次回复内容粘贴回原始 docx（我已用 <font color="blue">...</font> 标注了需替换 / 新增的文本）。

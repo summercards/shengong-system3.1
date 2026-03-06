@@ -1,0 +1,15 @@
+name: Kael
+archetype: 失忆佣兵
+core_motive: 寻找过去，生存
+static_profile:
+  gender: 男
+  skills:
+  - 枪械
+  - 近战
+  - 基础魔法
+dynamic_state:
+  physical_health: 99
+  mental_state: 极度兴奋
+  inventory:
+  - 手枪
+  - 治疗剂

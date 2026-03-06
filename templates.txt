@@ -1,0 +1,57 @@
+说明
+本文件为所有 P 阶段通用的三循环模板（Loop-1 开发 / Loop-2 审核 / Loop-3 验收），OpenClaw 在执行某一阶段某一循环时应仅读取该循环对应模板并按模板要求返回结构化 JSON。原则上如果出现无法实现的问题，自行可以按照项目目的和项目文档的阶段目标自行修改现阶段的内容。
+2) Loop-1（阶段开发循环） — 关键词模板（已精简）
+目的关键词：开发-最小可运行功能、提交-artifact、写入-开发日志
+必需输入关键词：阶段文档段-P{X}-{Y}、上游状态、acceptance_list_entry
+执行步骤关键词（按序）：
+读取-阶段目标/验收项/输入输出
+检查-上游状态是否_DONE（若非_DONE 则返回 BLOCKED）
+生成-实现要点、最小可运行说明、提交说明（PR/Artifact）
+执行-最小单元/Smoke 测试说明与结果收集
+写入-开发日志；返回-Loop-1-结果
+必须输出/返回关键词（JSON 字段）：status, artifact, log, metrics, issues
+status（COMPLETED | BLOCKED）
+artifact（type, url）
+log（文本摘要）
+metrics（tests_passed, tests_total）
+issues（数组）
+说明：模板仅为关键词驱动，OpenClaw 在执行时应把上面每条“执行步骤关键词”映射为内部动作链，但模板文本本身不包含实现细节或代码。
+loop-templates-openclaw
+3) Loop-2（阶段审核循环） — 关键词模板（已精简）
+目的关键词：审核-按验收项、生成-审核报告、若不合格-创建 Issue
+必需输入关键词：Loop-1.artifact/PR、Loop-1.dev_log、P{X}-{Y}_acceptance_items
+执行步骤关键词（按序）：
+读取-Artifact/PR diff 与 开发日志
+逐条校验-验收项（字段/YAML/schema/unit tests/CI 输出）
+生成-结构化审核报告（包含结论与问题清单）
+若 REJECTED → 生成-Issue-清单并标注严重性；不在本任务内修复
+返回-Loop-2-结果
+必须输出/返回关键词（JSON 字段）：status, issues, audit_log, artifact_review_url
+status（APPROVED | REJECTED）
+issues（[{id,severity,desc,fix}]）
+audit_log（文本结论）
+artifact_review_url（若适用）
+说明：Loop-2 模板仅列“审核动作”的关键词；若为 APPROVED，Orchestrator/平台应据此安排 Loop-3。
+loop-templates-openclaw
+4) Loop-3（阶段验收循环） — 关键词模板（已精简）
+目的关键词：最终验收-标记DONE、触发-下阶段Loop-1或定时任务
+必需输入关键词：Loop-2.审核报告（必须为 APPROVED）、最终 artifact/CI 报告
+执行步骤关键词（按序）：
+复核-Loop-2 审核结论 与 CI 报告
+若通过 → 写入-验收报告，设阶段状态为 DONE，创建-下阶段 Loop-1 任务（或创建定时任务）
+若不通过 → 返回 BLOCKED 并列出需回退至 Loop-2 的问题
+返回-Loop-3-结果
+必须输出/返回关键词（JSON 字段）：status, acceptance_report_url, release_tag, residual_issues
+status（COMPLETED | BLOCKED）
+acceptance_report_url（验收报告位置）
+release_tag（例如 pX-Y-v0.1）
+residual_issues（数组）
+说明：Loop-3 模板为“验收关键词集”，OpenClaw 根据这些关键词决定是否标记阶段 DONE 并触发后续任务。
+loop-templates-openclaw
+5) artifacts 与日志写入 关键词约定（必须被 Orchestrator 遵守）
+每次 Loop 完成后 追加 一条条目到 artifacts/stage_logs.json，条目必须包含：task_id, phase, loop, status, actor, artifact, summary, timestamp（与原文格式一致）。（参考原文日志约定）loop-templates-openclaw
+验收列表文件名：artifacts/acceptance_list.json。每阶段条目字段：status, last_completed_loop, last_updated。
+使用约定
+每次 OpenClaw 任务只执行一个 Loop（例如 P2-1/Loop-2）。
+OpenClaw 返回必须为上面定义的 JSON schema，否则 Orchestrator 视为失败。
+若 Loop-2 REJECTED，必须由人工或自动化创建新的 Loop-2 任务（新 task_id），不得在同一任务内修复。

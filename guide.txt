@@ -1,0 +1,184 @@
+神工系统 V3.1 – 工程化实施与交付指南
+本指南基于《神工系统 V3.1》项目文档，明确项目各阶段任务、启动命令及验收标准，方便通过 OpenClaw 平台自动化执行项目流程。完成准备后，将指南与项目文档一起提供给 OpenClaw，使用以下启动命令即可触发全流程执行。
+核心启动命令
+当项目文档和本指南准备好后，在 OpenClaw 平台上运行以下命令：
+openclaw run --docs "神工系统 V3.1.docx" "神工系统 V3.1 – 工程化实施与交付指南.docx" \             --tasks "阅读并分析项目需求与实现方案；生成分阶段任务清单及执行计划；按照每阶段任务自动执行开发流程并在完成后进行验收；
+说明： 该命令指示 OpenClaw 读取两份文档，自动梳理功能需求与实施方案，生成阶段性任务分配，并依次执行开发、测试与交付过程。完成每阶段后，将结果提交至指定 Git 仓库并进行版本标记，直至项目全部完成。
+功能对照与优化项
+在实施前，请参考以下清单，确保所有关键功能均得到覆盖：- 社群传播模块：若需要，可在后续优化中加入“热点语义注入”功能以增加社交传播力。- 伏笔追踪机制：明确实现 foreshadowing_ledger 表，确保章节之间的伏笔能够被记录和激活。- 自动化测试：预留测试计划，在每个阶段结束时进行功能回归和性能测试，并记录测试报告。- 环境部署：提供运行环境说明或 Docker 配置，保证 OpenClaw 环境中依赖可正确安装。- 日志与监控：建议增加日志模块，对生成过程进行记录并在发生错误时报警。
+任务细分与资源规划
+为了适应AI模型的计算能力与上下文长度限制，我们对各阶段任务进行更细化的拆分。以下是在原始实施方案基础上，按照实际可执行规模细分的子任务清单，并说明每个子任务的AI调用指导与资源限制。
+P0 – 项目初始化
+P0-1：世界观配置生成
+描述：根据 {Logline} 和 {Genre_Rules}，调用 AI 生成 world_setting.yaml，内容包括故事大纲、题材标签、禁用元素等。
+AI 指令：请根据以下一句话大纲和题材规则，生成 world_setting.yaml 文件内容。
+资源：使用 GPT-4（8k）模式，每次输入不超过 2000 token，以确保生成结果能一次性返回。
+P0-2：角色模板创建
+描述：为主角及关键配角编写基础 YAML 模板，包括 static_profile 和 dynamic_state。
+AI 指令：请为角色“主角”生成 YAML 模板，包含 name、archetype、core_motive 以及动态状态字段。
+资源：使用 GPT-4（8k），输入少量信息即可生成完整结构，token 限制在 1000 左右。
+P0-3：数据库初始化
+描述：编写 Python 脚本 init_project.py，创建数据库表（events_log、world_graph_edges、character_relationships、foreshadowing_ledger）。
+AI 指令：请生成 Python 代码，用 sqlite3 库创建下列表结构...
+资源：此任务不直接调用大模型，但可让 AI 辅助生成 SQL 语句，保持每次生成代码片段在 1500 token 以内。
+P1 – 核心管道开发
+P1-1：Orchestrator 框架搭建
+描述：实现 Orchestrator 类骨架，包括读取输入、组织上下文、调用各 Agent。
+P1-1A：自动运行限制配置（Auto Run Control）
+为了避免系统无限循环生成章节导致资源滥用，
+Orchestrator 必须支持自动运行限制配置。
+推荐配置（config/world_setting.yaml 或 settings.py）：
+auto_run:
+  enabled: false
+  max_chapters_per_run: 3
+  pause_on_high_risk: true
+行为规则：
+1. 当 auto_run.enabled = true 时，系统允许自动连续生成章节。
+2. 每次运行最多生成 max_chapters_per_run 章。
+3. 当 Critic 评分低于阈值或 LoreKeeper 检测到高风险更新时，
+   Orchestrator 必须暂停运行并等待人工确认。
+AI 指令：
+请实现 Orchestrator 的自动运行控制逻辑，
+确保单次运行不会超过 max_chapters_per_run。
+AI 指令：请输出 Orchestrator 类的基本框架代码，包含读取 YAML、查询数据库、调用 Writer 和 Critic Agent 的方法定义。
+资源：GPT-4（8k）模式，可以一次性返回 ~300行代码，token 限制控制在 4000 内。
+P1-2：Writer Agent 实现
+描述：封装 GPT-4 调用逻辑，设计生成章节的 Prompt 模板。
+AI 指令：请给出章节生成的 Prompt 模板，示例填入 Logline、前文摘要和角色状态。
+资源：上下文可分批注入，确保 Prompt 长度 < 3000 token。
+P1-3：Critic Agent 实现
+描述：实现内容审查逻辑，根据 Genre_Rules 检查文本，
+并检测以下问题：
+- 是否违反题材规则
+- 是否出现角色 OOC
+- 是否满足当前 Beat 的剧情节奏
+Critic 不以“是否像爆款小说”作为判断标准。
+AI 指令：编写 Critic 模块的伪代码，描述如何检查文本违禁词并输出反馈。
+资源：使用 GPT-4（4k）模式处理生成文本长度，逐章节审查，单次处理限制 ~2000 token。
+P1-4：小规模验证
+描述：对核心管道进行干跑测试，使用示例大纲生成章节并检查完整性。
+验收：输出章节文本符合预期结构；通过 Critic 检查。
+P2 – 记忆与状态管理
+P2-1：角色状态读写
+ 描述：实现读取 data/characters/*.yaml 和更新函数，例如修改 physical_health、mental_state 等字段。
+实现要求（重要）：
+SQLite 数据库为系统唯一权威数据源，
+YAML 文件仅作为可读缓存存在。
+当需要更新角色 YAML 文件时，
+必须采用“原子写入（atomic write）”方式，
+避免并发写入导致文件损坏。
+推荐实现：
+1. 先写入临时文件（.tmp）
+2. 再使用文件替换操作覆盖原 YAML
+3. 若写入失败，数据库更新不回滚，但需记录日志
+示例代码：
+def atomic_write_yaml(path, data):
+    import tempfile, os, yaml, shutil
+    dirn = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(dir=dirn, prefix=".tmp_")
+    os.close(fd)
+    with open(tmp,'w',encoding='utf8') as f:
+        yaml.dump(data,f,allow_unicode=True)
+    shutil.move(tmp, path)
+AI 指令：请写 Python 代码，实现从 YAML 文件读取角色状态并更新后保存。
+资源：GPT-4（8k），逐文件操作；保证单次操作不超过 2000 token。
+P2-2：事件日志管理
+描述：实现将章节重要事件写入 events_log，并查询历史事件。
+AI 指令：生成 Python 函数 insert_event(summary)，将摘要写入数据库，并给出示例调用。
+资源：简单函数，GPT-4（8k）即可完成。
+P2-3：世界与关系图更新
+描述：根据剧情发展更新 world_graph_edges 和 character_relationships 表。
+AI 指令：请说明如何在脚本中根据本章内容更新世界图关系（例如城市归属变更）。
+资源：如需调用 AI，可限制上下文到当前章节摘要和现有图结构，小心不要超出 1500 token。
+【补充 — LoreKeeper JSON 输出与校验要求】
+所有由 Writer/Critic 触发的世界/角色变更，必须通过“结构化 JSON 提取器”产生，LoreKeeper 仅接受并解析该结构化输出。示例 JSON Schema（简化）：
+{
+  "chapter_id": "string",
+  "summary": "string",
+  "events": [
+    {
+      "event_id": "string",
+      "type": "relationship_change|action|item_acquired|location_change|foreshadow",
+      "description": "string",
+      "involved_characters": ["char_id_a","char_id_b"],
+      "relationship_updates": [
+        {"char_a":"char_id_a","char_b":"char_id_b","trust_delta":1,"hostility_delta":0}
+      ],
+      "resolved_clues": ["clue_id_1"],
+      "timestamp": "2026-03-04T12:00:00Z"
+    }
+  ]
+}
+实施要求：
+1. 程序端对接收到的 JSON 做严格校验（字段完整性、类型、白名单字符等）。  
+2. 只有在 JSON 校验通过后，LoreKeeper 才以事务方式更新 SQLite 并（可选）触发 YAML 的原子同步。  
+3. 对于大幅关系变更（如 trust_delta ≥ 3 或一次性更新 >5 条），应标记为 pending_review 并通知人工复核后才生效。
+P2-4：伏笔跟踪表
+描述：实现 foreshadowing_ledger 表，用于记录前文埋下的关键线索（如未决目标）。
+AI 指令：设计数据库表 foreshadowing_ledger，字段包括 clue_id, description, status, created_chapter。
+资源：结构定义不复杂，GPT-4（4k）即可输出。
+P3 – 规划与节奏细化
+ P3-1：Beat Scheduler 配置
+ 描述：根据项目文档第七章“剧情节奏调度器（Beat Scheduler）”，定义节奏点配置文件（章节号对应目标节点），用于控制情节高潮。
+AI 指令：AI 指令：请生成 Beat 配置示例，支持固定值或区间/策略格式。例如：
+{
+  "story_beats": {
+    "hook": {"type":"fixed","value":1},
+    "first_payoff": {"type":"range","min":2,"max":4},
+    "mini_climax": {"type":"range","min":8,"max":12},
+    "arc_climax": {"type":"range","min":25,"max":35}
+  }
+}
+说明：实现应支持从区间中采样（随机或 Planner 推荐），并把最终决定写入本章节的 beat metadata。
+资源：静态内容，AI生成示例即可。
+P3-2：Planner Agent 细分
+描述：将 Planner 的任务拆为两步：1) 生成每章节的情节简述；2) 生成列表或表单形式的阶段目标。
+AI 指令：请根据本章的节奏目标，生成本章的故事概要和关键转折列表。
+资源：对较长剧情概要可分段调用，每次不超过 3000 token。
+P3-3：伏笔引用
+描述：在情节规划时调用伏笔表，例如提醒“未决目标X需要结局”。
+AI 指令：模拟 Planner，请在故事概要中加入先前伏笔(从表中读取)的要素。
+资源：Context 包含当前伏笔描述 (<500 token)。
+P4 – 前端与监控细化
+P4-1：剧本编辑界面
+描述：用户输入/编辑 Logline 和章节大纲的界面模块开发。
+资源：无需AI生成，可使用Streamlit组件。
+P4-2：角色状态监控界面
+描述：显示和编辑所有角色动态状态的UI模块。
+资源：集成 YAML 编辑器或表单。
+P4-3：生成监控面板
+描述：实时展示 Writer输出、Critic反馈和日志的界面。
+资源：调用 Streamlit 显示文本区域和表格，无需超长历史，仅显示最近条目。
+P4-4：并行触发控制
+描述：允许同时预排下一章节规划，但实际只顺序生成，避免模型重复加载大上下文。
+AI 提示：如果使用 OpenClaw 支持并行，请限制同时进行的最大任务数，并串行调用生成API。
+P5 – 调试优化与测试
+P5-1：单元测试编写
+描述：针对 P2 和 P1 的功能编写自动化测试（如 YAML 读写、数据库操作）。
+AI 指令：写几个 pytest 测试示例，验证角色状态更新函数正确修改 YAML 文件。
+资源：测试用例较小，GPT-4（4k）可完成。
+P5-2：大模型效率
+描述：监控 API 调用时间和 Token 消耗，优化 Prompt 长度或使用模型缓存。
+AI 提示：在多轮调用时，保存必要上下文摘要，用于后续请求，避免每次重新传入全部内容。
+P5-3：压力测试
+描述：模拟多章连续生成，检测系统稳定性。
+验收：连续模拟 5-10 章生成无内存崩溃或明显超时。
+P6 – 打包发布
+P6-1：安装脚本完善
+描述：细分 install.sh 步骤，例如先安装依赖、再配置数据库。
+P6-2：发布版本管理
+描述：在 Git 上按子阶段建立标签或分支备份，如 p1a, p1b 等。
+资源限制与AI调用
+模型选择：优先使用 GPT-4（8k 版）进行代码生成和复杂文本处理；简短生成可使用 GPT-4（4k）或更低等级模型。
+上下文管理：对于长篇上下文（数万 token），应拆分为多次调用，或先由 AI 提炼概要后再使用；确保单次 Prompt 长度控制在模型极限以下。
+任务批量：将大型任务（如完整章节生成）分拆为多个小任务（逐步添加细节），AI 每次仅处理当前需要的部分。
+阶段验收标准与 Git 策略
+子任务验收：每完成一个小任务，需验证其输出（例如 YAML 格式正确、数据库可查询）。单元测试需覆盖主要功能。
+阶段验收：确保阶段内所有子任务完成，并由开发负责人检查。以 Git 提交记录为准，每个重要版本都创建 Tag/Release（如 p1a-v0.1）。以上细分任务及资源规划可以直接交给 OpenClaw 平台执行，并配合前述启动命令按阶段推进项目实施。每个子任务配有明确的 AI 指令和限制，保证在算力和上下文范围内高效运行。
+阶段启动与验收标准
+阶段启动：每阶段开始前召开启动会，明确目标、任务和负责人。新建阶段分支并准备阶段输入（设计文档、大纲、样例数据）。
+验收标准：阶段性验收需满足：所有计划功能实现、对应测试通过、文档更新齐全、并经项目负责人确认。遇到问题时先行修复后方可进入下一阶段。
+Git 备份与发布策略
+每阶段完成后，推送代码并创建 Tag/Release，如 vX.Y 来标记里程碑版本。
+持续编写 CHANGELOG.md 记录版本变更与功能说明。发布前确保 README、文档和演示示例同步更新。
+以上实施指南连同项目文档一起交给 OpenClaw，即可通过前述启动命令自动化执行项目的开发和验收流程。项目会按阶段输出成果并自动在 Git 仓库进行备份，直至最终交付完成。

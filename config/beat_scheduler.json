@@ -1,0 +1,36 @@
+{
+  "story_beats": {
+    "hook": {
+      "type": "fixed",
+      "value": 1,
+      "desc": "开篇钩子，建立世界观和初步冲突"
+    },
+    "inciting_incident": {
+      "type": "range",
+      "min": 2,
+      "max": 4,
+      "desc": "激励事件，主角被迫踏上旅程"
+    },
+    "first_plot_point": {
+      "type": "fixed",
+      "value": 10,
+      "desc": "第一幕转折点，不可逆转的挑战"
+    },
+    "mini_climax": {
+      "type": "interval",
+      "every": 5,
+      "desc": "每隔5章设置一个小高潮"
+    },
+    "midpoint": {
+      "type": "fixed",
+      "value": 25,
+      "desc": "中点，剧情发生巨大逆转或真相揭露"
+    },
+    "arc_climax": {
+      "type": "range",
+      "min": 45,
+      "max": 50,
+      "desc": "大结局高潮"
+    }
+  }
+}

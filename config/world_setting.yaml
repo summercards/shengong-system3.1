@@ -1,0 +1,13 @@
+logline: "在一个魔法与赛博朋克融合的未来世界，失去记忆的佣兵必须在巨型财阀的阴谋中寻找自己的过去，同时拯救被魔法污染的城市。"
+genre_rules:
+  - 魔法与科技的平衡
+  - 反乌托邦背景
+  - 道德灰度的角色冲突
+forbidden_elements:
+  - 穿越/系统流
+  - 绝对的好人或坏人
+  - 机械降神式的结局
+auto_run:
+  enabled: false
+  max_chapters_per_run: 3
+  pause_on_high_risk: true
