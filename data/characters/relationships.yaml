@@ -1,0 +1,6 @@
+relationships:
+- reason: Test relationship
+  source: char_a
+  target: char_b
+  type: friend
+  weight: 80

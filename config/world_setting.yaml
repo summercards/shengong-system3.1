@@ -1,0 +1,8 @@
+chapters:
+  interval_minutes: 60
+  target_count: 10
+  target_length: 1200
+project:
+  genre: fantasy
+  logline: 测试故事线
+  title: 测试小说

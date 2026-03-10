@@ -1,0 +1,177 @@
+{
+  "tasks": [
+    {
+      "id": "M1-1",
+      "name": "初始化项目结构",
+      "status": "completed",
+      "completed_at": "2026-03-10T14:43:00",
+      "created_files": [
+        "init_project.py",
+        "config/world_setting.yaml",
+        "data/godcraft.db",
+        "data/characters/sample_char.yaml",
+        "tests/test_init.py"
+      ]
+    },
+    {
+      "id": "M1-2",
+      "name": "配置 world_setting.yaml",
+      "status": "completed",
+      "completed_at": "2026-03-10T14:48:00",
+      "created_files": [
+        "config/world_setting.yaml",
+        "tests/test_world_setting.py"
+      ]
+    },
+    {
+      "id": "M2-1",
+      "name": "数据库结构设计",
+      "status": "completed",
+      "completed_at": "2026-03-10T14:53:00",
+      "created_files": [
+        "database.py",
+        "tests/test_database.py"
+      ],
+      "tests_passed": 14
+    },
+    {
+      "id": "M2-2",
+      "name": "结构化存取与 JSON Schema 验证",
+      "status": "completed",
+      "completed_at": "2026-03-10T14:58:00",
+      "created_files": [
+        "utils/schema_validator.py",
+        "structured_store.py",
+        "tests/test_structured_store.py",
+        "fix_db.py"
+      ],
+      "tests_passed": 12,
+      "key_features": [
+        "JSON Schema 验证 (project, job, character, structured_update)",
+        "trust_delta 机制 (delta>3 且 |delta|>5 时触发审核)",
+        "StructuredStore 类封装数据库操作与验证",
+        "审计日志记录"
+      ]
+    },
+    {
+      "id": "M3-1",
+      "name": "Orchestrator / StoryCycle 核心实现",
+      "status": "completed",
+      "completed_at": "2026-03-10T15:18:00",
+      "created_files": [
+        "orchestrator.py",
+        "openclaw_api.py",
+        "tests/test_orchestrator.py"
+      ],
+      "tests_passed": 10,
+      "key_features": [
+        "Orchestrator 类 - 故事循环核心编排器",
+        "StoryCycle 完整流程: 规划 → 写作 → 审查 → Planner Agent 集成同步",
+        "章节规划",
+        "Writer Agent 集成 - 内容生成",
+        "Critic Agent 集成 - 质量审查",
+        "LoreKeeper 集成 - 世界观同步",
+        "任务队列管理 - writing_jobs 表操作",
+        "output/ 目录",
+        "便捷函数: create_orchestrator(), run_story_cycle()"
+      ]
+    },
+    {
+      "id": "M3-2",
+      "name": "Planner/Writer/Critic prompts 定义",
+      "status": "completed",
+      "completed_at": "2026-03-10T15:28:00",
+      "created_files": [
+        "prompts/planner_prompt.txt",
+        "prompts/writer_prompt.txt",
+        "prompts/critic_prompt.txt",
+        "tests/test_prompts.py"
+      ],
+      "tests_passed": 6,
+      "key_features": [
+        "Planner Prompt - 章节规划 Agent prompt，包含 outline、beat_tags、key_events、characters_in_scene",
+        "Writer Prompt - 章节写作 Agent prompt，包含正文+结构化数据输出规范",
+        "Critic Prompt - 章节审查 Agent prompt，包含评分维度和反馈规范",
+        "Prompts 完整性测试 - 验证所有 prompt 元素"
+      ]
+    },
+    {
+      "id": "M4-1",
+      "name": "Job Controller (job_controller.py)",
+      "status": "completed",
+      "completed_at": "2026-03-10T15:33:00",
+      "created_files": [
+        "job_controller.py",
+        "tests/test_job_controller.py",
+        "fix_job_table.py"
+      ],
+      "tests_passed": 16,
+      "key_features": [
+        "JobController 类 - 任务调度控制器",
+        "JobStatus 枚举 - pending/running/completed/failed/cancelled/paused",
+        "ScheduleStrategy 枚举 - immediate/delayed/interval/cron/manual",
+        "Job 数据类 - 任务数据结构",
+        "任务队列管理 - create_job, get_job, cancel_job, retry_job",
+        "任务执行 - execute_job 支持自定义执行器",
+        "调度器 - 定时检查和执行任务",
+        "回调机制 - on_job_complete, on_job_failed",
+        "统计和历史 - get_job_stats, get_job_history",
+        "便捷函数: create_job_controller(), create_and_queue_job()"
+      ]
+    },
+    {
+      "id": "M4-2",
+      "name": "Scheduler Adapter 注册任务",
+      "status": "completed",
+      "completed_at": "2026-03-10T15:40:00",
+      "created_files": [
+        "scheduler_adapter.py",
+        "tests/test_scheduler_adapter.py"
+      ],
+      "tests_passed": 28,
+      "key_features": [
+        "SchedulerAdapter 抽象基类 - 调度适配器接口",
+        "CronAdapter - Cron 表达式调度 (使用 croniter)",
+        "APSchedulerAdapter - APScheduler 高级调度 (支持 cron/interval/date)",
+        "CeleryAdapter - Celery 分布式任务队列 (支持 mock 模式)",
+        "SchedulerAdapterFactory 工厂类 - 创建适配器实例",
+        "便捷函数: create_cron_adapter(), create_apscheduler_adapter(), create_celery_adapter()"
+      ],
+      "functions_implemented": [
+        "SchedulerAdapter.start",
+        "SchedulerAdapter.stop",
+        "SchedulerAdapter.schedule_job",
+        "SchedulerAdapter.cancel_job",
+        "SchedulerAdapter.list_jobs",
+        "CronAdapter.schedule_job",
+        "CronAdapter.cancel_job",
+        "CronAdapter._cron_loop",
+        "APSchedulerAdapter.schedule_job",
+        "APSchedulerAdapter.cancel_job",
+        "CeleryAdapter.schedule_job",
+        "CeleryAdapter.cancel_job",
+        "SchedulerAdapterFactory.create"
+      ]
+    },
+    {
+      "id": "M5-1",
+      "name": "Streamlit UI / Minimal API",
+      "status": "completed",
+      "completed_at": "2026-03-10T15:55:00",
+      "created_files": [
+        "app.py",
+        "api.py",
+        "tests/test_app.py"
+      ],
+      "key_features": [
+        "Streamlit Web UI - 项目管理、章节写作、任务监控、输出查看、设置页面",
+        "Minimal REST API - 项目、任务、章节、统计端点",
+        "与 database.py, orchestrator.py, job_controller.py 集成"
+      ],
+      "functions_implemented": [
+        "app.py: render_home, render_project_management, render_chapter_writing, render_task_monitoring, render_output_view, render_settings",
+        "api.py: GET /, GET /health, GET/POST /projects, POST /projects/{id}/write, GET /jobs, GET /chapters, GET /stats"
+      ]
+    }
+  ]
+}

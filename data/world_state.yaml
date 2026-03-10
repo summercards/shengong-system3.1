@@ -1,0 +1,7 @@
+edges:
+- properties:
+    distance: 50km
+  reason: Test world state
+  source: city_capital
+  target: forest_enchanted
+  type: connects_to

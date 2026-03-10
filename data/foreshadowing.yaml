@@ -1,0 +1,5 @@
+foreshadowings:
+- description: mysterious_prophecy
+  status: active
+  target_chapter: 10
+  trigger_condition: Hero enters castle

@@ -1,0 +1,10 @@
+character_id: char_main_01
+dynamic_state:
+  goals: []
+  location: ''
+  mood: ''
+name: 主角
+static_profile:
+  age: null
+  appearance: ''
+  background: ''

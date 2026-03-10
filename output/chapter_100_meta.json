@@ -1,0 +1,10 @@
+{
+  "chapter_num": 100,
+  "word_count": 12,
+  "timestamp": "2026-03-10T15:39:17.673065",
+  "results": {
+    "planning": "success",
+    "writing": "success",
+    "review": "{'score': 0.5, 'needs_revision': True, 'feedback': 'HEARTBEAT_OK'}"
+  }
+}
